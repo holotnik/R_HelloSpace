@@ -32,6 +32,7 @@ jpvapaavuori@gmail.com
 
 
 
+
 /* 
 Global variable initializations: 
 It's good to have these variables more constant to control the rocket turns better.
@@ -39,6 +40,8 @@ It's good to have these variables more constant to control the rocket turns bett
 var step = 0; // amount of steps, equivalent of time.
 var startPosition = new Vec3(22,0,0);
 var xyzTarget = {x: 0, y: 0, z: 0};
+var errorLogWindow = null; //for error log
+var err = null;
 // openWindow for logger, uncomment line below if needed.
 // var openWindow = window.open();
 
@@ -49,7 +52,7 @@ var xyzTarget = {x: 0, y: 0, z: 0};
    @param {WorldState}
    
    */
-   
+
    var fuel = state.rocket.fuel.volume;
    var rocket = state.rocket;
    var planets = state.planetStates;
@@ -110,8 +113,25 @@ var xyzTarget = {x: 0, y: 0, z: 0};
      
    }
    
-   return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
+  return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
  }
+ 
+ function errorHandler(error, errorLogWindow) {
+
+   if (errorLogWindow == null) {
+     errorLogWindow = window.open(); 
+   }
+   try {
+     errorLogWindow.document.write("Error Message: " + error.message + "<br>");
+     errorLogWindow.document.write("Stacktrace: " + error.stack + "<br>");
+   }
+   catch (err) {
+     alert("Problem with errorHandler function");
+   }
+   return errorLogWindow;
+   
+ }
+ 
  
  function calculateTargetCoordinates(startPosition, target, overShoot) {
 
@@ -189,32 +209,37 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  * @returns {Array} rcs
  */   
    
+   try {
+     var rcs = {yaw: 0, pitch: 0, roll: 0};
+     var turnPrecision = 0.01;
    
-   var rcs = {yaw: 0, pitch: 0, roll: 0};
-   var turnPrecision = 0.01;
+     if (xyzTarget.z != rocket.rotation.z) {
+       rcs.yaw = (xyzTarget.z - rocket.rotation.z) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.z - rocket.rotation.z) < turnPrecision) {
+       rcs.yaw = stabilize(rocket).yaw;
+     }
    
-   if (xyzTarget.z != rocket.rotation.z) {
-     rcs.yaw = (xyzTarget.z - rocket.rotation.z) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.z - rocket.rotation.z) < turnPrecision) {
-     rcs.yaw = stabilize(rocket).yaw;
-   }
+     if (xyzTarget.y != rocket.rotation.y) {
+       rcs.pitch = (xyzTarget.y - rocket.rotation.z) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.y - rocket.rotation.y) < turnPrecision) {
+       rcs.pitch = stabilize(rocket).pitch;
+     }
    
-   if (xyzTarget.y != rocket.rotation.y) {
-     rcs.pitch = (xyzTarget.y - rocket.rotation.z) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.y - rocket.rotation.y) < turnPrecision) {
-     rcs.pitch = stabilize(rocket).pitch;
-   }
-   
-   if (xyzTarget.x != rocket.rotation.x) {
-     rcs.roll = (xyzTarget.x - rocket.rotation.x) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.x - rocket.rotation.x) < turnPrecision) {
-     rcs.roll = stabilize(rocket).roll;
+     if (xyzTarget.x != rocket.rotation.x) {
+       rcs.roll = (xyzTarget.x - rocket.rotation.x) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.x - rocket.rotation.x) < turnPrecision) {
+       rcs.roll = stabilize(rocket).roll;
+     }
    }   
    
-   return rcs;
+
+   catch (error) {
+     errorLogWindow = errorHandler(error, errorLogWindow)
+   } 
+  return rcs;   
  }
 
  function stabilize(rocket) {
@@ -226,24 +251,28 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  *
  * @returns {Array} rcs
  */      
-   
-   
-   var rcs = {yaw: 0, pitch: 0, roll: 0}
 
-   var aVelocity = rocket.angularVelocity;
-   var brakeFactor = 2;
+   
+    var rcs = {yaw: 0, pitch: 0, roll: 0}
+    try {   
+      var aVelocity = rocket.angularVelocity;
+      var brakeFactor = 2;
+      b = 3;
  
    
-   if (aVelocity.z != 0) {
-     
-     rcs.yaw = - aVelocity.z*brakeFactor;
-   }  
-   if (aVelocity.x != 0) {
-     rcs.roll=  - aVelocity.x*brakeFactor;
-   }
-   if (aVelocity.y != 0) {
-     rcs.pitch =  - aVelocity.y*brakeFactor;
-   }   
+      if (aVelocity.z != 0) {
+        rcs.yaw = - aVelocity.z*brakeFactor;
+      }  
+      if (aVelocity.x != 0) {
+        rcs.roll=  - aVelocity.x*brakeFactor;
+      }
+      if (aVelocity.y != 0) {
+        rcs.pitch =  - aVelocity.y*brakeFactor;
+      }   
    
+   }
+   catch (error) {
+      errorLogWindow = errorHandler(error, errorLogWindow);
+   }
    return rcs;
-   }  
+ }
