@@ -1,0 +1,249 @@
+/*
+
+  __  __          ___    ___                
+ /\ \/\ \        /\_ \  /\_ \               
+ \ \ \_\ \     __\//\ \ \//\ \     ___      
+  \ \  _  \  /'__`\\ \ \  \ \ \   / __`\    
+   \ \ \ \ \/\  __/ \_\ \_ \_\ \_/\ \L\ \   
+    \ \_\ \_\ \____\/\____\/\____\ \____/   
+     \/_/\/_/\/____/\/____/\/____/\/___/    
+ ____                                      
+/\  _`\                                    
+\ \,\L\_\  _____      __      ___     __   
+ \/_\__ \ /\ '__`\  /'__`\   /'___\ /'__`\ 
+   /\ \L\ \ \ \L\ \/\ \L\.\_/\ \__//\  __/ 
+   \ `\____\ \ ,__/\ \__/.\_\ \____\ \____\
+    \/_____/\ \ \/  \/__/\/_/\/____/\/____/
+             \ \_\                         
+               \/_/              by Reaktor
+ */
+
+/*
+The below code aligns the tip of the rocket to the trajectory of the target with an overshoot from the current target position. 
+Overall strategy is to: 
+1) Modify overshooting parameter to test a sufficent overshoot for rocket to meet the target.
+2) Match Rockets speed and direction with the moon
+3) land somewhat safely ;)
+
+Code by: 
+J-P Vapaavuori
+jpvapaavuori@gmail.com
+*/
+
+
+
+/* 
+Global variable initializations: 
+It's good to have these variables more constant to control the rocket turns better.
+*/ 
+var step = 0; // amount of steps, equivalent of time.
+var startPosition = new Vec3(22,0,0);
+var xyzTarget = {x: 0, y: 0, z: 0};
+// openWindow for logger, uncomment line below if needed.
+// var openWindow = window.open();
+
+ return function GoToMoon(state) {
+   
+   /*
+   This function serves as a general flight plan.
+   @param {WorldState}
+   
+   */
+   
+   var fuel = state.rocket.fuel.volume;
+   var rocket = state.rocket;
+   var planets = state.planetStates;
+   var target = planets[1]; 
+   var velocityFactor = 0.0166; // 1 unit of velocity moves objects 0.0166 distance units/step (calculated from log files)
+   var overShoot = 3700 * velocityFactor;
+   var infoFreq = 25; // step frequence of the stateInfo messages
+   var rcs = {yaw: 0, pitch: 0, roll: 0};
+   var thrust = 0;
+   step += 1; 
+   
+//   If logger is needed, uncomment line below.
+//   stateInfo(rocket, target, step, infoFreq, openWindow); 
+   
+   // Lift off:
+   rcs = {yaw: 0.15, pitch: 0, roll: 0};
+   thrust = 100;
+   
+   if (fuel < 50) {
+      // Orbit:
+      thrust = 0;
+      rcs = stabilize(rocket);
+      xyzTarget = calculateTargetCoordinates(startPosition, target, overShoot); 
+      
+      if (step > 200 && step < 500) {
+        // Rocket is aligned to the intercept trajectory
+        rcs = turn(rocket, xyzTarget);
+      }
+      
+      if (step > 1000 && (rocket.velocity.length() > 15) && fuel > 30) {
+        // Rocket leaves orbit when gaining enough momentum.
+        thrust = 100;
+      }
+      
+      if (distanceToTarget(rocket, target) < 250) {
+        // Rocket is aligned to somewhat match the direction of targets velocity
+        xyzTarget = {x: target.velocity.x * velocityFactor, y: target.velocity.y * velocityFactor, z: target.velocity.z * velocityFactor};
+        rcs = turn(rocket, xyzTarget);
+        
+        if (distanceToTarget(rocket, target) < 100) {
+          rcs = stabilize(rocket);
+        }
+        
+        if (distanceToTarget(rocket, target) < 17.6 && rocket.velocity.length() < target.velocity.length()){
+          // Rocket Matches speed with target
+          thrust = 1;
+          rcs = stabilize(rocket);
+
+        }
+ 
+        
+      }
+      
+
+      
+
+
+     
+   }
+   
+   return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
+ }
+ 
+ function calculateTargetCoordinates(startPosition, target, overShoot) {
+
+/**
+ * Calculates the planet trajectory and adds overShoot.
+ * @param {Vec3} startPosition
+ * @param {PlanetState} target
+ * @param {Number} overShoot
+ * 
+ * @returns {Array} xyzTarget
+ */   
+   
+   
+  var xyzTarget = {x: 0, y: 0, z: 0};
+  var targetRotation = new Quaternion(0,0,0,0);
+  var targetX = (target.position.x + target.velocity.x * overShoot) - startPosition.x;
+  var targetY = (target.position.y + target.velocity.y * overShoot) - startPosition.y;
+  var targetZ = (target.position.z + target.velocity.z * overShoot) - startPosition.z;
+  var targetVec = new Vec3(targetX, targetY , targetZ);
+
+  
+  targetRotation.setFromVectors(startPosition, targetVec);
+  xyzTarget = {x: targetRotation.x, y: targetRotation.y, z: targetRotation.z};
+  
+  return xyzTarget;
+ }
+
+ function distanceToTarget(rocket, target){
+  /**
+ * distance between objects.
+ * @param {RocketState} rocket
+ * @param {PlanetState} target
+ * 
+ * @returns {Number} distance
+ */    
+
+   var targetVec = target.position;
+   var rocketVec = rocket.position;
+   var distance = targetVec.distanceTo(rocketVec);
+   return distance; 
+ } 
+ 
+function stateInfo(rocket, target, step, freq, openWindow) {
+  
+/**
+ * logger function printing out relevant info about planet and rocket states
+ * @param {RocketState} rocket
+ * @param {PlanetState} target
+ * @param {Number} step
+ * @param {Window} 
+ * 
+ */
+
+   
+  if (step % freq == 0) {
+    openWindow.document.write("Step: "+ step + "<br>"); 
+    openWindow.document.write("  Rocket position: "+ (rocket.position).toString()  + "<br>"); 
+    openWindow.document.write("  Rocket velocity: "+ (rocket.velocity).toString()  + "<br>");
+    openWindow.document.write("  Target position: "+ (target.position).toString()  + "<br>");
+    openWindow.document.write("  Target velocity: "+ (target.velocity).toString()  + "<br>");
+    openWindow.document.write("  Distance: "+ (distanceToTarget(rocket, target)).toString() + "<br>");
+    openWindow.document.write("<br>");
+  }  
+  
+} 
+  
+ 
+ 
+ function turn(rocket, xyzTarget) {
+/**
+ * function aligns rocket with target
+ * @param {RocketState} rocket
+ * @param {Array} xyzTarget
+ * 
+ * @returns {Array} rcs
+ */   
+   
+   
+   var rcs = {yaw: 0, pitch: 0, roll: 0};
+   var turnPrecision = 0.01;
+   
+   if (xyzTarget.z != rocket.rotation.z) {
+     rcs.yaw = (xyzTarget.z - rocket.rotation.z) * turnPrecision;
+   }
+   if (Math.abs(xyzTarget.z - rocket.rotation.z) < turnPrecision) {
+     rcs.yaw = stabilize(rocket).yaw;
+   }
+   
+   if (xyzTarget.y != rocket.rotation.y) {
+     rcs.pitch = (xyzTarget.y - rocket.rotation.z) * turnPrecision;
+   }
+   if (Math.abs(xyzTarget.y - rocket.rotation.y) < turnPrecision) {
+     rcs.pitch = stabilize(rocket).pitch;
+   }
+   
+   if (xyzTarget.x != rocket.rotation.x) {
+     rcs.roll = (xyzTarget.x - rocket.rotation.x) * turnPrecision;
+   }
+   if (Math.abs(xyzTarget.x - rocket.rotation.x) < turnPrecision) {
+     rcs.roll = stabilize(rocket).roll;
+   }   
+   
+   return rcs;
+ }
+
+ function stabilize(rocket) {
+   //
+/**
+ * Function brakes all angular velocities ~ 0
+ * 
+ * @param {RocketState} state
+ *
+ * @returns {Array} rcs
+ */      
+   
+   
+   var rcs = {yaw: 0, pitch: 0, roll: 0}
+
+   var aVelocity = rocket.angularVelocity;
+   var brakeFactor = 2;
+ 
+   
+   if (aVelocity.z != 0) {
+     
+     rcs.yaw = - aVelocity.z*brakeFactor;
+   }  
+   if (aVelocity.x != 0) {
+     rcs.roll=  - aVelocity.x*brakeFactor;
+   }
+   if (aVelocity.y != 0) {
+     rcs.pitch =  - aVelocity.y*brakeFactor;
+   }   
+   
+   return rcs;
+   }  
