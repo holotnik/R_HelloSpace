@@ -144,20 +144,23 @@ var err = null;
  * @returns {Array} xyzTarget
  */   
    
-   
-  var xyzTarget = {x: 0, y: 0, z: 0};
-  var targetRotation = new Quaternion(0,0,0,0);
-  var targetX = (target.position.x + target.velocity.x * overShoot) - startPosition.x;
-  var targetY = (target.position.y + target.velocity.y * overShoot) - startPosition.y;
-  var targetZ = (target.position.z + target.velocity.z * overShoot) - startPosition.z;
-  var targetVec = new Vec3(targetX, targetY , targetZ);
+  try { 
+    var xyzTarget = {x: 0, y: 0, z: 0};
+    var targetRotation = new Quaternion(0,0,0,0);
+    var targetX = (target.position.x + target.velocity.x * overShoot) - startPosition.x;
+    var targetY = (target.position.y + target.velocity.y * overShoot) - startPosition.y;
+    var targetZ = (target.position.z + target.velocity.z * overShoot) - startPosition.z;
+    var targetVec = new Vec3(targetX, targetY , targetZ);
 
   
-  targetRotation.setFromVectors(startPosition, targetVec);
-  xyzTarget = {x: targetRotation.x, y: targetRotation.y, z: targetRotation.z};
-  
+    targetRotation.setFromVectors(startPosition, targetVec);
+    xyzTarget = {x: targetRotation.x, y: targetRotation.y, z: targetRotation.z};
+  }  
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }  
   return xyzTarget;
- }
+  }
 
  function distanceToTarget(rocket, target){
   /**
@@ -167,10 +170,14 @@ var err = null;
  * 
  * @returns {Number} distance
  */    
-
-   var targetVec = target.position;
-   var rocketVec = rocket.position;
-   var distance = targetVec.distanceTo(rocketVec);
+  try {
+    var targetVec = target.position;
+    var rocketVec = rocket.position;
+    var distance = targetVec.distanceTo(rocketVec);
+  } 
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }
    return distance; 
  } 
  
@@ -185,15 +192,19 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  * 
  */
 
-   
-  if (step % freq == 0) {
-    openWindow.document.write("Step: "+ step + "<br>"); 
-    openWindow.document.write("  Rocket position: "+ (rocket.position).toString()  + "<br>"); 
-    openWindow.document.write("  Rocket velocity: "+ (rocket.velocity).toString()  + "<br>");
-    openWindow.document.write("  Target position: "+ (target.position).toString()  + "<br>");
-    openWindow.document.write("  Target velocity: "+ (target.velocity).toString()  + "<br>");
-    openWindow.document.write("  Distance: "+ (distanceToTarget(rocket, target)).toString() + "<br>");
-    openWindow.document.write("<br>");
+  try { 
+    if (step % freq == 0) {
+      openWindow.document.write("Step: "+ step + "<br>"); 
+      openWindow.document.write("  Rocket position: "+ (rocket.position).toString()  + "<br>"); 
+      openWindow.document.write("  Rocket velocity: "+ (rocket.velocity).toString()  + "<br>");
+      openWindow.document.write("  Target position: "+ (target.position).toString()  + "<br>");
+      openWindow.document.write("  Target velocity: "+ (target.velocity).toString()  + "<br>");
+      openWindow.document.write("  Distance: "+ (distanceToTarget(rocket, target)).toString() + "<br>");
+      openWindow.document.write("<br>");
+    }
+  }
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
   }  
   
 } 
