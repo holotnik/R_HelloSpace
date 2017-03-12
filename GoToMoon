@@ -25,6 +25,8 @@ Overall strategy is to:
 2) Match Rockets speed and direction with the moon
 3) land somewhat safely ;)
 
+NOTE: rocket log and error handling need the browser to allow popups to work correctly
+
 Code by: 
 J-P Vapaavuori
 jpvapaavuori@gmail.com
@@ -68,9 +70,9 @@ var err = null;
 //   stateInfo(rocket, target, step, infoFreq, openWindow); 
    
    // Lift off:
+  try { 
    rcs = {yaw: 0.15, pitch: 0, roll: 0};
    thrust = 100;
-   
    if (fuel < 50) {
       // Orbit:
       thrust = 0;
@@ -102,21 +104,30 @@ var err = null;
           rcs = stabilize(rocket);
 
         }
- 
-        
       }
-      
-
-      
-
-
-     
-   }
+    }
+  }
+  
+  catch(error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }
    
   return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
  }
  
  function errorHandler(error, errorLogWindow) {
+   
+   /**
+    * Centralized error handler. 
+    * Opens error log window if not already open. 
+    * Tries to print error message and stack trace
+    * Function returns errorLogWindow object to keep on printing error messages...
+    * without crashing the application.
+    * @param {Error} error
+    * @param {Window} errorLogWindow
+    * 
+    * @returns {Window} errorLogWindow
+    */
 
    if (errorLogWindow == null) {
      errorLogWindow = window.open(); 
@@ -126,7 +137,7 @@ var err = null;
      errorLogWindow.document.write("Stacktrace: " + error.stack + "<br>");
    }
    catch (err) {
-     alert("Problem with errorHandler function");
+     alert("Error Handler function failed.");
    }
    return errorLogWindow;
    
