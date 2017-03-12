@@ -25,10 +25,13 @@ Overall strategy is to:
 2) Match Rockets speed and direction with the moon
 3) land somewhat safely ;)
 
+NOTE: rocket log and error handling need the browser to allow popups to work correctly
+
 Code by: 
 J-P Vapaavuori
 jpvapaavuori@gmail.com
 */
+
 
 
 
@@ -39,6 +42,8 @@ It's good to have these variables more constant to control the rocket turns bett
 var step = 0; // amount of steps, equivalent of time.
 var startPosition = new Vec3(22,0,0);
 var xyzTarget = {x: 0, y: 0, z: 0};
+var errorLogWindow = null; //for error log
+var err = null;
 // openWindow for logger, uncomment line below if needed.
 // var openWindow = window.open();
 
@@ -49,7 +54,7 @@ var xyzTarget = {x: 0, y: 0, z: 0};
    @param {WorldState}
    
    */
-   
+
    var fuel = state.rocket.fuel.volume;
    var rocket = state.rocket;
    var planets = state.planetStates;
@@ -65,9 +70,9 @@ var xyzTarget = {x: 0, y: 0, z: 0};
 //   stateInfo(rocket, target, step, infoFreq, openWindow); 
    
    // Lift off:
+  try { 
    rcs = {yaw: 0.15, pitch: 0, roll: 0};
    thrust = 100;
-   
    if (fuel < 50) {
       // Orbit:
       thrust = 0;
@@ -99,19 +104,45 @@ var xyzTarget = {x: 0, y: 0, z: 0};
           rcs = stabilize(rocket);
 
         }
- 
-        
       }
-      
-
-      
-
-
-     
-   }
+    }
+  }
+  
+  catch(error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }
    
-   return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
+  return new Controls({ thrust: thrust, rcs: { yaw: rcs.yaw, pitch: rcs.pitch, roll: rcs.roll}})
  }
+ 
+ function errorHandler(error, errorLogWindow) {
+   
+   /**
+    * Centralized error handler. 
+    * Opens error log window if not already open. 
+    * Tries to print error message and stack trace
+    * Function returns errorLogWindow object to keep on printing error messages...
+    * without crashing the application.
+    * @param {Error} error
+    * @param {Window} errorLogWindow
+    * 
+    * @returns {Window} errorLogWindow
+    */
+
+   if (errorLogWindow == null) {
+     errorLogWindow = window.open(); 
+   }
+   try {
+     errorLogWindow.document.write("Error Message: " + error.message + "<br>");
+     errorLogWindow.document.write("Stacktrace: " + error.stack + "<br>");
+   }
+   catch (err) {
+     alert("Error Handler function failed.");
+   }
+   return errorLogWindow;
+   
+ }
+ 
  
  function calculateTargetCoordinates(startPosition, target, overShoot) {
 
@@ -124,20 +155,23 @@ var xyzTarget = {x: 0, y: 0, z: 0};
  * @returns {Array} xyzTarget
  */   
    
-   
-  var xyzTarget = {x: 0, y: 0, z: 0};
-  var targetRotation = new Quaternion(0,0,0,0);
-  var targetX = (target.position.x + target.velocity.x * overShoot) - startPosition.x;
-  var targetY = (target.position.y + target.velocity.y * overShoot) - startPosition.y;
-  var targetZ = (target.position.z + target.velocity.z * overShoot) - startPosition.z;
-  var targetVec = new Vec3(targetX, targetY , targetZ);
+  try { 
+    var xyzTarget = {x: 0, y: 0, z: 0};
+    var targetRotation = new Quaternion(0,0,0,0);
+    var targetX = (target.position.x + target.velocity.x * overShoot) - startPosition.x;
+    var targetY = (target.position.y + target.velocity.y * overShoot) - startPosition.y;
+    var targetZ = (target.position.z + target.velocity.z * overShoot) - startPosition.z;
+    var targetVec = new Vec3(targetX, targetY , targetZ);
 
   
-  targetRotation.setFromVectors(startPosition, targetVec);
-  xyzTarget = {x: targetRotation.x, y: targetRotation.y, z: targetRotation.z};
-  
+    targetRotation.setFromVectors(startPosition, targetVec);
+    xyzTarget = {x: targetRotation.x, y: targetRotation.y, z: targetRotation.z};
+  }  
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }  
   return xyzTarget;
- }
+  }
 
  function distanceToTarget(rocket, target){
   /**
@@ -147,10 +181,14 @@ var xyzTarget = {x: 0, y: 0, z: 0};
  * 
  * @returns {Number} distance
  */    
-
-   var targetVec = target.position;
-   var rocketVec = rocket.position;
-   var distance = targetVec.distanceTo(rocketVec);
+  try {
+    var targetVec = target.position;
+    var rocketVec = rocket.position;
+    var distance = targetVec.distanceTo(rocketVec);
+  } 
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
+  }
    return distance; 
  } 
  
@@ -165,15 +203,19 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  * 
  */
 
-   
-  if (step % freq == 0) {
-    openWindow.document.write("Step: "+ step + "<br>"); 
-    openWindow.document.write("  Rocket position: "+ (rocket.position).toString()  + "<br>"); 
-    openWindow.document.write("  Rocket velocity: "+ (rocket.velocity).toString()  + "<br>");
-    openWindow.document.write("  Target position: "+ (target.position).toString()  + "<br>");
-    openWindow.document.write("  Target velocity: "+ (target.velocity).toString()  + "<br>");
-    openWindow.document.write("  Distance: "+ (distanceToTarget(rocket, target)).toString() + "<br>");
-    openWindow.document.write("<br>");
+  try { 
+    if (step % freq == 0) {
+      openWindow.document.write("Step: "+ step + "<br>"); 
+      openWindow.document.write("  Rocket position: "+ (rocket.position).toString()  + "<br>"); 
+      openWindow.document.write("  Rocket velocity: "+ (rocket.velocity).toString()  + "<br>");
+      openWindow.document.write("  Target position: "+ (target.position).toString()  + "<br>");
+      openWindow.document.write("  Target velocity: "+ (target.velocity).toString()  + "<br>");
+      openWindow.document.write("  Distance: "+ (distanceToTarget(rocket, target)).toString() + "<br>");
+      openWindow.document.write("<br>");
+    }
+  }
+  catch (error) {
+    errorLogWindow = errorHandler(error, errorLogWindow);
   }  
   
 } 
@@ -189,32 +231,37 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  * @returns {Array} rcs
  */   
    
+   try {
+     var rcs = {yaw: 0, pitch: 0, roll: 0};
+     var turnPrecision = 0.01;
    
-   var rcs = {yaw: 0, pitch: 0, roll: 0};
-   var turnPrecision = 0.01;
+     if (xyzTarget.z != rocket.rotation.z) {
+       rcs.yaw = (xyzTarget.z - rocket.rotation.z) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.z - rocket.rotation.z) < turnPrecision) {
+       rcs.yaw = stabilize(rocket).yaw;
+     }
    
-   if (xyzTarget.z != rocket.rotation.z) {
-     rcs.yaw = (xyzTarget.z - rocket.rotation.z) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.z - rocket.rotation.z) < turnPrecision) {
-     rcs.yaw = stabilize(rocket).yaw;
-   }
+     if (xyzTarget.y != rocket.rotation.y) {
+       rcs.pitch = (xyzTarget.y - rocket.rotation.z) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.y - rocket.rotation.y) < turnPrecision) {
+       rcs.pitch = stabilize(rocket).pitch;
+     }
    
-   if (xyzTarget.y != rocket.rotation.y) {
-     rcs.pitch = (xyzTarget.y - rocket.rotation.z) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.y - rocket.rotation.y) < turnPrecision) {
-     rcs.pitch = stabilize(rocket).pitch;
-   }
-   
-   if (xyzTarget.x != rocket.rotation.x) {
-     rcs.roll = (xyzTarget.x - rocket.rotation.x) * turnPrecision;
-   }
-   if (Math.abs(xyzTarget.x - rocket.rotation.x) < turnPrecision) {
-     rcs.roll = stabilize(rocket).roll;
+     if (xyzTarget.x != rocket.rotation.x) {
+       rcs.roll = (xyzTarget.x - rocket.rotation.x) * turnPrecision;
+     }
+     if (Math.abs(xyzTarget.x - rocket.rotation.x) < turnPrecision) {
+       rcs.roll = stabilize(rocket).roll;
+     }
    }   
    
-   return rcs;
+
+   catch (error) {
+     errorLogWindow = errorHandler(error, errorLogWindow)
+   } 
+  return rcs;   
  }
 
  function stabilize(rocket) {
@@ -226,24 +273,26 @@ function stateInfo(rocket, target, step, freq, openWindow) {
  *
  * @returns {Array} rcs
  */      
-   
-   
-   var rcs = {yaw: 0, pitch: 0, roll: 0}
 
-   var aVelocity = rocket.angularVelocity;
-   var brakeFactor = 2;
- 
    
-   if (aVelocity.z != 0) {
-     
-     rcs.yaw = - aVelocity.z*brakeFactor;
-   }  
-   if (aVelocity.x != 0) {
-     rcs.roll=  - aVelocity.x*brakeFactor;
+    var rcs = {yaw: 0, pitch: 0, roll: 0}
+    try {   
+      var aVelocity = rocket.angularVelocity;
+      var brakeFactor = 2;
+   
+      if (aVelocity.z != 0) {
+        rcs.yaw = - aVelocity.z*brakeFactor;
+      }  
+      if (aVelocity.x != 0) {
+        rcs.roll=  - aVelocity.x*brakeFactor;
+      }
+      if (aVelocity.y != 0) {
+        rcs.pitch =  - aVelocity.y*brakeFactor;
+      }   
+   
    }
-   if (aVelocity.y != 0) {
-     rcs.pitch =  - aVelocity.y*brakeFactor;
-   }   
-   
+   catch (error) {
+      errorLogWindow = errorHandler(error, errorLogWindow);
+   }
    return rcs;
-   }  
+ }
