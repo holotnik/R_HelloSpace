@@ -279,8 +279,6 @@ function stateInfo(rocket, target, step, freq, openWindow) {
     try {   
       var aVelocity = rocket.angularVelocity;
       var brakeFactor = 2;
-      b = 3;
- 
    
       if (aVelocity.z != 0) {
         rcs.yaw = - aVelocity.z*brakeFactor;
